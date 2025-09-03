@@ -31,7 +31,6 @@ SafeSpace is a rapid-demo platform designed to showcase detection of potential i
 
 View detailed profiles of SEBI-registered advisers, including expertise, research reports, and client reviews.
 
-**[Browse Now →](#)**
 
 #### Onboard as Adviser
 
@@ -41,15 +40,12 @@ Join the marketplace as a verified SEBI adviser:
 - Upload credentials (PDF / proof)  
 - Start offering advisory services securely
 
-**[Start Onboarding →](#)**
 
 #### Secure & Compliant
 
 - Verified against SEBI mock registry (replace with real API for production)  
 - Audit logs for client interactions  
 - Agreements stored securely  
-
-**[Check Compliance →](#)**
 
 #### Why Use This Marketplace?
 
@@ -75,7 +71,6 @@ Each tool has its own page — click to open and run. Cards highlight the key ca
 - Flag: `"approved by SEBI"`, `"guaranteed allotment"`, etc.  
 - Returns extracted text, suspicious flag, recommendations  
 
-**[Open Docs](#)** – One-click Demo
 
 ---
 
@@ -87,8 +82,6 @@ Each tool has its own page — click to open and run. Cards highlight the key ca
 - Heuristic deepfake detection (file size, frame analysis)  
 - Returns suspicious flag, notes, and analysis summary  
 
-**[Open Deepfake Tool](#)** – One-click Demo
-
 ---
 
 ### 3. Verify Trading Apps
@@ -99,7 +92,6 @@ Each tool has its own page — click to open and run. Cards highlight the key ca
 - Warn and recommend not to install unknown apps  
 - Easy to extend with metadata & app signature checks  
 
-**[Open App Verifier](#)** – One-click Demo
 
 ---
 
@@ -111,7 +103,6 @@ Each tool has its own page — click to open and run. Cards highlight the key ca
 - Produce risk score, red-flag matches & guidance  
 - Future: integrate market anomaly checks  
 
-**[Open Tips](#)** – One-click Demo
 
 ---
 
@@ -146,18 +137,8 @@ Suggested 3-step demo:
 2. **Upload a fake SEBI-like PDF**  
 3. **Verify an unlisted app**  
 
-> Explain the risk score and show the evidence panel.
-
-[Run Tips Demo](#) | [Upload Doc](#) | [Verify App](#)
-
 ---
 
-## SEBI SafeSpace (Demo)
-
-- Not legal advice  
-- Integrate official SEBI registries for production
-
----
 
 ### Quick Links
 
