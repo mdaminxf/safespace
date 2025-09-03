@@ -1,6 +1,8 @@
 'use client';
 import { useState } from 'react';
 import { PDFDocument } from 'pdf-lib';
+import * as pdfjsLib from 'pdfjs-dist';
+import 'pdfjs-dist/build/pdf.worker.entry';
 
 type FraudResult = {
   verdict: string;
@@ -24,14 +26,21 @@ export default function FraudCheckDocs() {
   const [result, setResult] = useState<FraudResult | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Extract text from PDF using pdf-lib
-  const extractTextFromPDF = async (file: File) => {
+  
+  const extractTextFromPDF = async (file: File): Promise<string> => {
     const arrayBuffer = await file.arrayBuffer();
-    const pdfDoc = await PDFDocument.load(arrayBuffer);
-    const pages = pdfDoc.getPages();
-    return pages.map((p) => p.getTextContent?.()?.toString() || '').join('\n');
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  
+    let text = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const strings = content.items.map((item: any) => item.str);
+      text += strings.join(' ') + '\n';
+    }
+  
+    return text;
   };
-
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] ?? null;
     setFile(f);
