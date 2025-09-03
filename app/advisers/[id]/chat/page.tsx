@@ -107,7 +107,7 @@ export default function AdviserChatPage({
 
   function exportChat() {
     const payload = {
-      adviser: { id: adviser.id, name: adviser.name, regNo: adviser.regNo },
+      adviser: { id: adviser?.id, name: adviser?.name, regNo: adviser?.regNo },
       exportedAt: new Date().toISOString(),
       messages,
     };
@@ -117,7 +117,7 @@ export default function AdviserChatPage({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `chat_${adviser.id}_${new Date().toISOString()}.json`;
+    a.download = `chat_${adviser?.id}_${new Date().toISOString()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -134,7 +134,7 @@ export default function AdviserChatPage({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          bio: adviser.bio ?? '',
+          bio: adviser?.bio ?? '',
           hfResult: null,
           question: userPrompt,
         }),
@@ -204,7 +204,7 @@ export default function AdviserChatPage({
           </button>
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center text-xl font-semibold text-slate-700">
-              {adviser.name
+              {adviser?.name
                 .split(' ')
                 .map((s) => s[0])
                 .slice(0, 2)
@@ -212,11 +212,11 @@ export default function AdviserChatPage({
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-bold leading-tight">
-                {adviser.name}
+                {adviser?.name}
               </h1>
               <div className="text-xs sm:text-sm text-gray-600">
-                {adviser.entityType ?? 'Adviser'} • RegNo:{' '}
-                <span className="font-mono">{adviser.regNo ?? '—'}</span>
+                {adviser?.entityType ?? 'Adviser'} • RegNo:{' '}
+                <span className="font-mono">{adviser?.regNo ?? '—'}</span>
               </div>
             </div>
           </div>
@@ -261,21 +261,19 @@ export default function AdviserChatPage({
           <div>
             <h2 className="font-semibold mb-2">Adviser profile</h2>
             <p className="text-sm text-gray-700 whitespace-pre-line">
-              {adviser.bio ?? 'No bio provided.'}
+              {adviser?.bio ?? 'No bio provided.'}
             </p>
           </div>
 
           <div className="space-y-1 text-sm">
             <div>
               <strong>SEBI RegNo:</strong>{' '}
-              <span className="font-mono">{adviser.regNo ?? '—'}</span>
+              <span className="font-mono">{adviser?.regNo ?? '—'}</span>
             </div>
             <div>
-              <strong>Entity:</strong> {adviser.entityType ?? '—'}
+              <strong>Entity:</strong> {adviser?.entityType ?? '—'}
             </div>
-            <div>
-              <strong>Location:</strong> {adviser.location ?? '—'}
-            </div>
+           
           </div>
 
           <div>
