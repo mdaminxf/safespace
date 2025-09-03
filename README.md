@@ -8,12 +8,12 @@
 
 SafeSpace is a rapid-demo platform designed to showcase detection of potential investment frauds. It combines:
 
-- **Rules-first red-flag detection**
-- **OCR-based document analysis**
-- **SEBI registration verification (mock)**
-- **Explainable risk scoring**
-- **AI assistance**: draft questions, analyze tips, highlight risks
-- **Custom ML layer**: fraud detection heuristics for tips and documents
+- **Rules-first red-flag detection**  
+- **OCR-based document analysis**  
+- **SEBI registration verification (mock)**  
+- **Explainable risk scoring**  
+- **AI assistance**: draft questions, analyze tips, highlight risks  
+- **Custom ML layer**: fraud detection heuristics for tips and documents  
 
 > ⚠️ Demo-ready. For production, integrate SEBI APIs and enhanced OCR/visual checks.
 
@@ -21,49 +21,56 @@ SafeSpace is a rapid-demo platform designed to showcase detection of potential i
 
 ## Marketplace
 
-### SEBI-Verified Adviser Marketplace
+<details>
+<summary>SEBI-Verified Adviser Marketplace</summary>
 
-**Connect with SEBI-registered advisers, access verified research, and make investment decisions with confidence.**
+**Connect with SEBI-registered advisers, access verified research, and make investment decisions with confidence.**  
 
 > Demo MVP — integrate official SEBI APIs for production.
 
-#### Browse Advisers
+### Browse Advisers
 
-View detailed profiles of SEBI-registered advisers, including expertise, research reports, and client reviews.
+View detailed profiles of SEBI-registered advisers, including:
+
+- Expertise & advisory areas  
+- Research reports (demo data)  
+- Client reviews (mock/demo)  
 
 
-#### Onboard as Adviser
+### Onboard as Adviser
 
 Join the marketplace as a verified SEBI adviser:
 
-- Submit SEBI registration number  
+- Submit your SEBI registration number  
 - Upload credentials (PDF / proof)  
 - Start offering advisory services securely
 
 
-#### Secure & Compliant
+### Secure & Compliant
 
 - Verified against SEBI mock registry (replace with real API for production)  
 - Audit logs for client interactions  
 - Agreements stored securely  
 
-#### Why Use This Marketplace?
 
-| Feature               | Benefit |
-|-----------------------|---------|
-| **Trust**             | All advisers verified against SEBI records (demo). No fake advisors. |
-| **Transparency**      | Clear client reviews, research reports, and advisory history for informed decisions. |
-| **Compliance**        | Agreements & audit logs stored securely; integrate real SEBI API in production. |
-| **AI Assistance**     | Draft questions, analyze tips, and highlight potential risks in adviser communications. |
+### Why Use This Marketplace?
+
+| Feature                  | Benefit |
+|---------------------------|---------|
+| **Trust**                | All advisers verified against SEBI records (demo). No fake advisors. |
+| **Transparency**         | Clear client reviews, research reports, and advisory history for informed decisions. |
+| **Compliance**           | Agreements & audit logs stored securely; integrate real SEBI API in production. |
+| **AI Assistance**        | Draft questions, analyze tips, and highlight potential risks in adviser communications. |
 | **Custom ML / Risk Scoring** | Rules-first + ML heuristics for fraud detection, tip analysis, and document verification with explainable risk scores. |
+
+</details>
 
 ---
 
 ## Core Tools
 
-Each tool has its own page — click to open and run. Cards highlight the key capabilities you can demo to judges.
-
-### 1. Check Documents
+<details>
+<summary>1. Check Documents</summary>
 
 **OCR + rules scan to detect fake SEBI letters, approvals, and suspicious text.**
 
@@ -71,10 +78,10 @@ Each tool has its own page — click to open and run. Cards highlight the key ca
 - Flag: `"approved by SEBI"`, `"guaranteed allotment"`, etc.  
 - Returns extracted text, suspicious flag, recommendations  
 
+</details>
 
----
-
-### 2. Deepfake / Media Analysis
+<details>
+<summary>2. Deepfake / Media Analysis</summary>
 
 **Upload videos or provide URLs to check for synthetic/deepfake media (demo/mock).**
 
@@ -82,9 +89,11 @@ Each tool has its own page — click to open and run. Cards highlight the key ca
 - Heuristic deepfake detection (file size, frame analysis)  
 - Returns suspicious flag, notes, and analysis summary  
 
----
 
-### 3. Verify Trading Apps
+</details>
+
+<details>
+<summary>3. Verify Trading Apps</summary>
 
 **Whitelist checks, UI/branding similarity detection, and app verification warnings (prototype).**
 
@@ -93,9 +102,10 @@ Each tool has its own page — click to open and run. Cards highlight the key ca
 - Easy to extend with metadata & app signature checks  
 
 
----
+</details>
 
-### 4. Analyze Stock Tips
+<details>
+<summary>4. Analyze Stock Tips</summary>
 
 **Paste Telegram/WhatsApp tips, run red-flag scan and optional ML classification.**
 
@@ -103,6 +113,8 @@ Each tool has its own page — click to open and run. Cards highlight the key ca
 - Produce risk score, red-flag matches & guidance  
 - Future: integrate market anomaly checks  
 
+
+</details>
 
 ---
 
@@ -136,5 +148,13 @@ Suggested 3-step demo:
 1. **Run a Tip Analyzer preset**  
 2. **Upload a fake SEBI-like PDF**  
 3. **Verify an unlisted app**  
+
+
+---
+
+## SEBI SafeSpace (Demo)
+
+- Not legal advice  
+- Integrate official SEBI registries for production
 
 ---
