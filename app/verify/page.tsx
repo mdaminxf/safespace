@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { advisors } from '../../data/advisors';
+import { advisors } from '../data/advisors';
 import Navbar from '../../components/Navbar';
 
 export default function Verify() {

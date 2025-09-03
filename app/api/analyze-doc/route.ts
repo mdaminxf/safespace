@@ -5,7 +5,7 @@ import {
   computeRiskFromViolations,
   buildRecommendations,
   Violation,
-} from '../../lib/fraud-utils';
+} from '../../../lib/frad-utils';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
 import { GoogleGenAI } from '@google/genai';
 
