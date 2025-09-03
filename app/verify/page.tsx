@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { advisors } from '../data/advisors';
+import { ADVISERS } from '../../data/advisers';
 import Navbar from '../../components/Navbar';
 
 export default function Verify() {
@@ -8,7 +8,7 @@ export default function Verify() {
   const [result, setResult] = useState<string | null>(null);
 
   const handleCheck = () => {
-    const found = advisors.find((a) => a.sebiId === input);
+    const found = ADVISERS.find((a) => a.regNo === input);
     if (found && found.verified) {
       setResult(`✅ ${found.name} is SEBI Verified`);
     } else {

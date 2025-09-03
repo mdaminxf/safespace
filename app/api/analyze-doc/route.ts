@@ -18,10 +18,11 @@ type FraudCheckResult = {
   sebi: any;
   redFlags: Violation[];
   ai?: any;
-  documentAnalysis?: { text?: string; suspicious?: boolean; metadata?: any };
+  documentAnalysis?: { text?: string; suspicious?: boolean; metadata?: any } | null; // <-- allow null
   summary: string;
   recommendations: string[];
 };
+
 
 /* ---------------------------
 AI/NLP via Google GenAI
