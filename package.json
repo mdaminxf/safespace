@@ -44,6 +44,7 @@
     "@types/ffprobe-static": "^2.0.3",
     "@types/fluent-ffmpeg": "^2.1.27",
     "@types/pdf-parse": "^1.1.5",
+    "@types/pdfjs-dist": "^2.10.377",
     "@types/sharp": "^0.31.1",
     "bufferutil": "^4.0.9",
     "encoding": "^0.1.13",
