@@ -1,7 +1,6 @@
 // app/page.tsx
 'use client';
 
-import Link from 'next/link';
 export default function Home(): JSX.Element {
   const features = [
     {
@@ -42,7 +41,7 @@ export default function Home(): JSX.Element {
       <header className="max-w-6xl mx-auto px-6 text-center mt-6">
         <h1 className="text-3xl md:text-4xl leading-tight">
           Protect retail investors — detect fraudulent advisers, fake SEBI
-          letters & scam apps instantly
+          letters &amp; scam apps instantly
         </h1>
         <p className="mt-4 max-w-3xl mx-auto text-lg text-slate-600">
           Demo MVP: combine rules-first detection, OCR document analysis, SEBI
@@ -119,8 +118,10 @@ export default function Home(): JSX.Element {
             </div>
 
             <ul className="mt-4 text-sm text-slate-600 space-y-2">
-              <li>• Extract text from PDF & detect suspicious terms</li>
-              <li>• Flag: "approved by SEBI", "guaranteed allotment", etc.</li>
+              <li>• Extract text from PDF &amp; detect suspicious terms</li>
+              <li>
+                • Flag: &quot;approved by SEBI&quot;, &quot;guaranteed allotment&quot;, etc.
+              </li>
               <li>
                 • Returns extracted text, suspicious flag, recommendations
               </li>
@@ -234,7 +235,7 @@ export default function Home(): JSX.Element {
               <li>• Whitelist of trusted brokers (demo)</li>
               <li>• Warn and recommend not to install unknown apps</li>
               <li>
-                • Easy to extend by adding metadata & app signature checks
+                • Easy to extend by adding metadata &amp; app signature checks
               </li>
             </ul>
 
@@ -277,14 +278,14 @@ export default function Home(): JSX.Element {
                 <h3 className="font-semibold">Analyze Stock Tips</h3>
                 <div className="text-xs text-slate-500">
                   Paste Telegram/WhatsApp tips, run red-flag scan and optional
-                  ML classification, get verdict & recommendations.
+                  ML classification, get verdict &amp; recommendations.
                 </div>
               </div>
             </div>
 
             <ul className="mt-4 text-sm text-slate-600 space-y-2">
-              <li>• Detect "guaranteed", "inside info", group invites</li>
-              <li>• Produce risk score, red-flag matches & guidance</li>
+              <li>• Detect &quot;guaranteed&quot;, &quot;inside info&quot;, group invites</li>
+              <li>• Produce risk score, red-flag matches &amp; guidance</li>
               <li>• Integrate market anomaly checks (future)</li>
             </ul>
 
@@ -325,8 +326,8 @@ export default function Home(): JSX.Element {
               (mock DB). Replace with SEBI feed for production.
             </li>
             <li>
-              <strong>Document analysis:</strong> {`pdfjs OCR -> extract text ->
-              apply rules. For scanned PDFs add Tesseract/Cloud OCR.`}
+              <strong>Document analysis:</strong>{' '}
+              {'pdfjs OCR -> extract text -> apply rules. For scanned PDFs add Tesseract/Cloud OCR.'}
             </li>
             <li>
               <strong>ML layer (optional):</strong> zero-shot classification
@@ -343,7 +344,7 @@ export default function Home(): JSX.Element {
           <h3 className="text-lg font-bold">Security & Production Checklist</h3>
           <ul className="mt-4 text-sm text-slate-600 list-disc pl-5 space-y-2">
             <li>
-              Integrate official SEBI registry & cache results for quick lookup.
+              Integrate official SEBI registry &amp; cache results for quick lookup.
             </li>
             <li>
               Harden file uploads (scan for malware, limit sizes) and store
@@ -358,11 +359,11 @@ export default function Home(): JSX.Element {
               PDF authenticity.
             </li>
             <li>
-              Logging & audit trail for every verification (immutable logs for
+              Logging &amp; audit trail for every verification (immutable logs for
               regulator review).
             </li>
             <li>
-              Explainability: persist matched rules & ML scores for appeals or
+              Explainability: persist matched rules &amp; ML scores for appeals or
               takedowns.
             </li>
           </ul>
