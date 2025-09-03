@@ -28,7 +28,6 @@ Each tool has its own page — click to open and run. Cards highlight the key ca
 - Flag terms like `"approved by SEBI"`, `"guaranteed allotment"`, etc.
 - Returns extracted text, suspicious flags, and recommendations
 
-[Open Docs](#) – One-click Demo
 
 ---
 
@@ -39,7 +38,6 @@ Each tool has its own page — click to open and run. Cards highlight the key ca
 - Heuristic deepfake detection (file size, frame analysis)
 - Returns suspicious flag, notes, and analysis summary
 
-[Open Deepfake Tool](#) – One-click Demo
 
 ---
 
@@ -50,7 +48,7 @@ Each tool has its own page — click to open and run. Cards highlight the key ca
 - Warn and recommend not to install unknown apps
 - Easy to extend with metadata & app signature checks
 
-[Open App Verifier](#) – One-click Demo
+
 
 ---
 
@@ -61,7 +59,6 @@ Each tool has its own page — click to open and run. Cards highlight the key ca
 - Produce risk score, red-flag matches, and guidance
 - Future: integrate market anomaly checks
 
-[Open Tips](#) – One-click Demo
 
 ---
 
@@ -95,23 +92,11 @@ Suggested 3-step demo:
 2. **Upload a fake SEBI-like PDF**  
 3. **Verify an unlisted app**  
 
-> Explain the risk score and show the evidence panel.
-
-[Run Tips Demo](#) | [Upload Doc](#) | [Verify App](#)
-
 ---
 
 ## SEBI SafeSpace (Demo)
 
 - Not legal advice  
 - Integrate official SEBI registries for production
-
----
-
-### Links
-
-- [Privacy](#)  
-- [Terms](#)  
-- [Contact](#)
 
 ---
