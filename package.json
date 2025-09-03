@@ -39,5 +39,9 @@
     "tmp-promise": "^3.0.3",
     "typescript": "5.2.2",
     "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/ffprobe-static": "^2.0.3",
+    "@types/pdf-parse": "^1.1.5"
   }
 }

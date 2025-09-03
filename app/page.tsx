@@ -325,8 +325,8 @@ export default function Home(): JSX.Element {
               (mock DB). Replace with SEBI feed for production.
             </li>
             <li>
-              <strong>Document analysis:</strong> pdfjs OCR -> extract text ->
-              apply rules. For scanned PDFs add Tesseract/Cloud OCR.
+              <strong>Document analysis:</strong> {`pdfjs OCR -> extract text ->
+              apply rules. For scanned PDFs add Tesseract/Cloud OCR.`}
             </li>
             <li>
               <strong>ML layer (optional):</strong> zero-shot classification

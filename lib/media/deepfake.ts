@@ -1,16 +1,10 @@
 // lib/media/deepfake.ts
 import fs from 'fs/promises';
 import path from 'path';
-import os from 'os';
 import crypto from 'crypto';
-import { fromBuffer } from 'file-type';
+import { fileTypeFromBuffer } from 'file-type';
 import tmp from 'tmp-promise';
 import sharp from 'sharp';
-import ffmpeg from 'fluent-ffmpeg';
-import ffprobePath from 'ffprobe-static';
-
-// point fluent-ffmpeg at ffprobe binary from ffprobe-static
-(ffmpeg as any).setFfprobePath((ffprobePath as any).path);
 
 export type DeepfakeResult = {
   suspicious: boolean;
@@ -23,7 +17,10 @@ export type DeepfakeResult = {
     durationSec?: number;
     hasAudio?: boolean;
     sha256?: string;
-  };
+    size?: number;
+    mime?: string;
+    ffprobe?: any;
+  } | undefined;
 };
 
 /**
@@ -94,41 +91,51 @@ export async function checkDeepfake(
   let score = 0;
   const evidence: any = { sha256, size: buffer.length };
 
-  // detect mime-type
-  const ft = await fromBuffer(buffer).catch(() => null);
+  // detect mime-type using file-type
+  let ft: { ext?: string; mime?: string } | null = null;
+  try {
+    ft = await fileTypeFromBuffer(buffer).catch(() => null);
+  } catch {
+    ft = null;
+  }
   const mime = ft?.mime ?? 'application/octet-stream';
   evidence.mime = mime;
   if (opts?.verbose) notes.push(`Detected mime: ${mime}`);
 
   // too small: suspicious
   if (buffer.length < minSizeBytes) {
-    notes.push(`File size ${buffer.length} bytes is very small (<${minSizeBytes}) — suspicious.`);
+    notes.push(
+      `File size ${buffer.length} bytes is very small (<${minSizeBytes}) — suspicious.`
+    );
     score += 50;
   }
 
   // If it's an image, run image heuristics
   if (mime.startsWith('image/')) {
-    // compute blur / variance metric using sharp
     try {
       const img = sharp(buffer).greyscale().resize(256, 256, { fit: 'inside' });
       const raw = await img.raw().toBuffer({ resolveWithObject: true });
       const pixels = raw.data;
-      // compute variance of luminance values (0..255)
+      const channels = raw.info.channels || 1;
+
+      // compute mean and variance for luminance channel
       let sum = 0;
-      for (let i = 0; i < pixels.length; i += raw.info.channels) {
+      const n = pixels.length / channels;
+      for (let i = 0; i < pixels.length; i += channels) {
         sum += pixels[i];
       }
-      const n = pixels.length / raw.info.channels;
       const mean = sum / n;
       let varSum = 0;
-      for (let i = 0; i < pixels.length; i += raw.info.channels) {
+      for (let i = 0; i < pixels.length; i += channels) {
         const v = pixels[i] - mean;
         varSum += v * v;
       }
       const variance = varSum / n;
       evidence.avgVariance = variance;
       if (variance < 50) {
-        notes.push('Image appears overly smooth / low variance — possible synthetic or heavily filtered image.');
+        notes.push(
+          'Image appears overly smooth / low variance — possible synthetic or heavily filtered image.'
+        );
         score += 40;
       } else {
         notes.push('Image variance looks normal.');
@@ -138,11 +145,44 @@ export async function checkDeepfake(
     }
 
     const suspicious = score >= 50;
-    return { suspicious, score: Math.min(100, score), notes, evidence };
+    return {
+      suspicious,
+      score: Math.min(100, score),
+      notes,
+      evidence,
+    };
   }
 
-  // If it's a video/audio container (quick check by mime)
-  if (mime.startsWith('video/') || mime.startsWith('audio/') || mime === 'application/octet-stream') {
+  // If it's a video/audio container (heuristic)
+  if (
+    mime.startsWith('video/') ||
+    mime.startsWith('audio/') ||
+    mime === 'application/octet-stream'
+  ) {
+    // attempt to dynamically load fluent-ffmpeg and ffprobe-static
+    let ffmpeg: any = null;
+    let ffprobeStatic: any = null;
+    try {
+      // dynamic import so builds that can't install native deps don't fail at module load
+      ffmpeg = (await import('fluent-ffmpeg')).default ?? (await import('fluent-ffmpeg'));
+      ffprobeStatic = (await import('ffprobe-static')).default ?? (await import('ffprobe-static'));
+      // set ffprobe path if available
+      if (ffprobeStatic && ffmpeg && ffmpeg.setFfprobePath) {
+        ffmpeg.setFfprobePath(ffprobeStatic.path);
+      }
+    } catch (err: any) {
+      // If ffmpeg/ffprobe not available in runtime, return a graceful fallback
+      notes.push(
+        'ffmpeg/ffprobe not available in this runtime — video heuristics skipped.'
+      );
+      return {
+        suspicious: false,
+        score: Math.min(100, score),
+        notes,
+        evidence,
+      };
+    }
+
     // write buffer to temp file and run ffprobe
     const tmpDir = await tmp.dir({ unsafeCleanup: true });
     const tmpfile = path.join(tmpDir.path, `upload_${Date.now()}`);
@@ -174,15 +214,16 @@ export async function checkDeepfake(
       const hasAudio = (ffprobeInfo?.streams ?? []).some((s: any) => s.codec_type === 'audio');
       evidence.hasAudio = Boolean(hasAudio);
       if (!hasAudio) {
-        notes.push('No audio track detected — while not definitive, absence of audio can be suspicious.');
+        notes.push('No audio track detected — absence of audio can be a weak signal of manipulation.');
         score += 10;
       }
 
-      // sample frames (extract N frames evenly)
+      // sample frames extraction
       const sampleFrames = opts?.sampleFrames ?? 3;
       const framesDir = path.join(tmpDir.path, 'frames');
       await fs.mkdir(framesDir);
-      // build ffmpeg command to extract frames at equidistant times
+
+      // compute timestamps to extract
       const timesToExtract: number[] = [];
       if (duration > 0) {
         for (let i = 1; i <= sampleFrames; i++) {
@@ -190,92 +231,14 @@ export async function checkDeepfake(
         }
       }
 
-      // extract frames
       const frameFiles: string[] = [];
-      // use fluent-ffmpeg to take snapshots
+      // extract frames using fluent-ffmpeg screenshots
       for (let i = 0; i < timesToExtract.length; i++) {
         const t = timesToExtract[i];
         const out = path.join(framesDir, `frame_${i}.png`);
         await new Promise<void>((resolve, reject) => {
+          // note: fluent-ffmpeg `.screenshots()` may spawn ffmpeg binary in runtime
           ffmpeg(tmpfile)
             .screenshots({
               timestamps: [t],
               filename: path.basename(out),
-              folder: framesDir,
-              size: '512x?',
-            })
-            .on('end', () => resolve())
-            .on('error', (err: any) => reject(err));
-        });
-        frameFiles.push(out);
-      }
-
-      // analyze frames with sharp (variance / blur proxy)
-      const variances: number[] = [];
-      for (const f of frameFiles) {
-        try {
-          const img = sharp(f).greyscale().resize(256, 256, { fit: 'inside' });
-          const raw = await img.raw().toBuffer({ resolveWithObject: true });
-          let sum = 0;
-          for (let i = 0; i < raw.data.length; i += raw.info.channels) sum += raw.data[i];
-          const n = raw.data.length / raw.info.channels;
-          const mean = sum / n;
-          let varSum = 0;
-          for (let i = 0; i < raw.data.length; i += raw.info.channels) {
-            const v = raw.data[i] - mean;
-            varSum += v * v;
-          }
-          const variance = varSum / n;
-          variances.push(variance);
-        } catch (err: any) {
-          // ignore frame failures
-        }
-      }
-
-      const avgVariance = variances.length ? variances.reduce((a, b) => a + b, 0) / variances.length : 0;
-      evidence.frameCount = variances.length;
-      evidence.avgVariance = avgVariance;
-
-      if (variances.length === 0) {
-        notes.push('Failed to extract or analyze frames — cannot compute frame variance.');
-        score += 20;
-      } else {
-        notes.push(`Analyzed ${variances.length} frames — avg variance ${avgVariance.toFixed(1)}.`);
-        if (avgVariance < 50) {
-          notes.push('Frames are unusually smooth / low variance — possible synthetic content or heavy filtering.');
-          score += 30;
-        }
-      }
-
-      // Basic heuristics combined:
-      const suspicious = score >= 60 || (avgVariance < 40 && score >= 30);
-      return {
-        suspicious,
-        score: Math.min(100, score),
-        notes,
-        evidence,
-      };
-    } catch (err: any) {
-      return {
-        suspicious: false,
-        score: 0,
-        notes: ['Heuristic analysis failed: ' + String(err?.message ?? err)],
-        evidence: { sha256, size: buffer.length },
-      };
-    } finally {
-      try {
-        await tmpDir.cleanup();
-      } catch {
-        // ignore
-      }
-    }
-  }
-
-  // fallback
-  return {
-    suspicious: false,
-    score: 0,
-    notes: ['Unrecognized media type; no analysis performed.'],
-    evidence: { sha256, size: buffer.length },
-  };
-}
