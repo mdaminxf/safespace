@@ -1,0 +1,60 @@
+// data/advisers.ts
+
+export const ADVISERS = [
+  {
+    id: '1',
+    name: 'Redwood Capital Advisers',
+    regNo: 'INA000123456',
+    entityType: 'Investment Adviser',
+    bio: 'We provide personalised portfolio advice and retirement planning services.',
+    verified: true,
+  },
+  {
+    id: '2',
+    name: 'Zenith Research LLP',
+    regNo: 'INH000987654',
+    entityType: 'Research Analyst',
+    bio: 'Equity research and thematic reports tailored for retail investors.',
+    verified: true,
+  },
+  {
+    id: '3',
+    name: 'Indie Trader',
+    regNo: 'FAKE-123',
+    entityType: 'Unregistered Individual',
+    bio: 'High returns guaranteed! Invest now for 200% growth.',
+    verified: false,
+  },
+  {
+    id: '4',
+    name: 'Harbor Wealth Management',
+    regNo: 'INA000543210',
+    entityType: 'Investment Adviser',
+    bio: 'Wealth management solutions with a focus on tax efficiency.',
+    verified: true,
+  },
+  {
+    id: '5',
+    name: 'BlueSky Equity Research',
+    regNo: 'INH000112233',
+    entityType: 'Research Analyst',
+    bio: 'In-depth sectoral reports and quarterly earnings analysis.',
+    verified: true,
+  },
+  {
+    id: '6',
+    name: 'QuickRich Solutions',
+    regNo: 'FAKE-888',
+    entityType: 'Advisor (Unverified)',
+    bio: 'Join our Telegram group for insider stock tips. Guaranteed profits.',
+    verified: false,
+  },
+  {
+    id: '7',
+    name: 'Amin Solutions',
+    regNo: 'INA000123459',
+    entityType: 'Investment Adviser',
+    bio: 'Join our Telegram group for insider stock tips. Guaranteed profits.',
+    verified: true,
+  },
+];
