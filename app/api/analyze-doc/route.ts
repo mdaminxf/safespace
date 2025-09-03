@@ -6,7 +6,8 @@ import {
   buildRecommendations,
   Violation,
 } from '../../../lib/frad-utils';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
+import * as pdfjsLib from "pdfjs-dist";
+import "pdfjs-dist/build/pdf.worker.entry";
 import { GoogleGenAI } from '@google/genai';
 
 /* ---------------------------
