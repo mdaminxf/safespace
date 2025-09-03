@@ -389,26 +389,6 @@ export default function AdviserDetail({ params }: { params: { id: string } }) {
     setTimeout(() => setAdviserSending(false), 1200);
   }
 
-  // derive ML trust badge from ML result
-  const mlTrustBadge = useMemo(() => {
-    const ml = analysis?.ml;
-    if (!ml) return null;
-    const legit = ml.scoreByLabel?.legitimate ?? 0;
-    const mis = ml.scoreByLabel?.misleading ?? 0;
-    const fraud = ml.scoreByLabel?.fraudulent ?? 0;
-
-    let status: 'Trustworthy' | 'Misleading' | 'Fraudulent' = 'Trustworthy';
-    let bg = 'bg-green-600 text-white';
-    if (fraud > 0.3) {
-      status = 'Fraudulent';
-      bg = 'bg-red-600 text-white';
-    } else if (mis > 0.3) {
-      status = 'Misleading';
-      bg = 'bg-yellow-500 text-black';
-    }
-    return { status, bg, legit, mis, fraud };
-  }, [analysis]);
-
   const scoreToPct = (n: number) => Math.round((n ?? 0) * 100);
 
   return (
