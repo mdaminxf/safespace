@@ -6,6 +6,7 @@ import {
   buildRecommendations,
   Violation,
 } from '../../../lib/frad-utils';
+import pdfParse from 'pdf-parse';
 import { GoogleGenAI } from '@google/genai';
 
 /* ---------------------------
@@ -17,7 +18,7 @@ type FraudCheckResult = {
   sebi: any;
   redFlags: Violation[];
   ai?: any;
-  documentAnalysis?: { text?: string; suspicious?: boolean; metadata?: any } | null; // allow null
+  documentAnalysis?: { text?: string; suspicious?: boolean; metadata?: any } | null;
   summary: string;
   recommendations: string[];
 };
@@ -25,9 +26,14 @@ type FraudCheckResult = {
 /* ---------------------------
 AI/NLP via Google GenAI
 --------------------------- */
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? '' });
+
 async function genAIClassify(text: string) {
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      return { error: 'GenAI API key missing' };
+    }
+
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: [
@@ -42,7 +48,8 @@ async function genAIClassify(text: string) {
       ],
     });
 
-    const outputText = response?.text || '';
+    // Attempt to extract text output (the SDK may differ; adjust as needed)
+    const outputText = (response as any)?.text ?? JSON.stringify(response);
     let topLabel: string = 'unknown';
     if (/fraudulent/i.test(outputText)) topLabel = 'fraudulent';
     else if (/misleading/i.test(outputText)) topLabel = 'misleading';
@@ -50,49 +57,29 @@ async function genAIClassify(text: string) {
 
     return { topLabel, raw: outputText };
   } catch (err: any) {
-    return { error: err.message };
+    return { error: err?.message ?? String(err) };
   }
 }
 
 /* ---------------------------
-   PDF OCR + metadata (Vercel-safe)
---------------------------- */
-/* ---------------------------
-   PDF OCR + metadata (Vercel-safe)
+   PDF OCR + metadata (server-safe using pdf-parse)
+   - pdf-parse works server-side and does not require canvas
 --------------------------- */
 async function analyzeDocument(fileBuffer: Buffer) {
   try {
-    
-    // dynamically import ESM build
-    const pdfjsLib = await import('pdfjs-dist/build/pdf.mjs');
-    (pdfjsLib as any).GlobalWorkerOptions.workerSrc = 
-    `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${(pdfjsLib as any).version}/pdf.worker.min.js`;
-  
-    // configure worker (required for Vercel)
-    (pdfjsLib as any).GlobalWorkerOptions.workerSrc = 
-      `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${(pdfjsLib as any).version}/pdf.worker.min.js`;
-
-    const loadingTask = pdfjsLib.getDocument({ data: fileBuffer });
-    const pdf = await loadingTask.promise;
-
-    let fullText = '';
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      const pageText = content.items.map((item: any) => item.str).join(' ');
-      fullText += pageText + ' ';
-    }
+    // pdf-parse extracts selectable text from PDFs
+    const data = (await pdfParse(fileBuffer)) as { text?: string };
+    const fullText = String(data?.text ?? '').trim();
 
     const suspicious = /\b(guarantee|approved by sebi|fraud|fake)\b/i.test(fullText);
     const metadata = { size: fileBuffer.length, type: 'pdf', suspicious };
 
-    return { text: fullText.trim(), suspicious, metadata };
+    return { text: fullText, suspicious, metadata };
   } catch (err) {
-    console.error('PDF parse error:', err);
+    console.error('PDF parse error (pdf-parse):', err);
     return { error: 'Failed to parse document' };
   }
 }
-
 
 /* ---------------------------
    Route Handler
@@ -105,10 +92,7 @@ export async function POST(req: Request) {
     const file = formData.get('file') as File | null;
 
     if (!bioRaw && !file) {
-      return NextResponse.json(
-        { error: 'Provide at least bio text or document' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Provide at least bio text or document' }, { status: 400 });
     }
 
     const bio = bioRaw?.trim().slice(0, 8000) ?? '';
@@ -119,13 +103,13 @@ export async function POST(req: Request) {
     // 2) Red-flag scan
     const violations = scanBioForFlags(bio);
 
-    // 3) AI classification
-    let aiResult = null;
+    // 3) AI classification (optional)
+    let aiResult: any = null;
     if (bio) aiResult = await genAIClassify(bio);
 
-    // 4) Document analysis
-    let documentAnalysis = null;
-    if (file && file.arrayBuffer) {
+    // 4) Document analysis (if file uploaded)
+    let documentAnalysis: any = null;
+    if (file && typeof file.arrayBuffer === 'function') {
       const buffer = Buffer.from(await file.arrayBuffer());
       documentAnalysis = await analyzeDocument(buffer);
     }
@@ -138,20 +122,19 @@ export async function POST(req: Request) {
     const summaryParts: string[] = [];
 
     if (violations.length > 0) {
-      summaryParts.push(
-        `Detected text issues: ${violations.map((v) => v.description).join('; ')}`
-      );
+      summaryParts.push(`Detected text issues: ${violations.map((v) => v.description).join('; ')}`);
     }
+
     if (sebiCheck) {
-      summaryParts.push(
-        `SEBI registration: ${sebiCheck.valid ? 'VALID' : 'INVALID'} (${sebiCheck.reason})`
-      );
+      summaryParts.push(`SEBI registration: ${sebiCheck.valid ? 'VALID' : 'INVALID'} (${sebiCheck.reason})`);
     }
+
     if (aiResult?.topLabel) {
       summaryParts.push(`AI classification: ${aiResult.topLabel}`);
     }
-    if (documentAnalysis && (documentAnalysis as any).suspicious) {
-      summaryParts.push(`Document analysis flagged suspicious terms.`);
+
+    if (documentAnalysis && documentAnalysis.suspicious) {
+      summaryParts.push('Document analysis flagged suspicious terms.');
     }
 
     const result: FraudCheckResult = {
