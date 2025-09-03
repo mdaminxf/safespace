@@ -6,8 +6,6 @@ import {
   buildRecommendations,
   Violation,
 } from '../../../lib/frad-utils';
-import * as pdfjsLib from "pdfjs-dist";
-import "pdfjs-dist/build/pdf.worker.entry";
 import { GoogleGenAI } from '@google/genai';
 
 /* ---------------------------
@@ -19,11 +17,10 @@ type FraudCheckResult = {
   sebi: any;
   redFlags: Violation[];
   ai?: any;
-  documentAnalysis?: { text?: string; suspicious?: boolean; metadata?: any } | null; // <-- allow null
+  documentAnalysis?: { text?: string; suspicious?: boolean; metadata?: any } | null; // allow null
   summary: string;
   recommendations: string[];
 };
-
 
 /* ---------------------------
 AI/NLP via Google GenAI
@@ -31,8 +28,6 @@ AI/NLP via Google GenAI
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 async function genAIClassify(text: string) {
   try {
-    const client = new GoogleGenAI({ apiKey: process.env.GENAI_API_KEY });
-
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: [
@@ -47,7 +42,6 @@ async function genAIClassify(text: string) {
       ],
     });
 
-    // Simple parsing: extract top label from AI output
     const outputText = response?.text || '';
     let topLabel: string = 'unknown';
     if (/fraudulent/i.test(outputText)) topLabel = 'fraudulent';
@@ -61,12 +55,26 @@ async function genAIClassify(text: string) {
 }
 
 /* ---------------------------
-   PDF OCR + metadata stub
+   PDF OCR + metadata (Vercel-safe)
+--------------------------- */
+/* ---------------------------
+   PDF OCR + metadata (Vercel-safe)
 --------------------------- */
 async function analyzeDocument(fileBuffer: Buffer) {
   try {
+    
+    // dynamically import ESM build
+    const pdfjsLib = await import('pdfjs-dist/build/pdf.mjs');
+    (pdfjsLib as any).GlobalWorkerOptions.workerSrc = 
+    `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${(pdfjsLib as any).version}/pdf.worker.min.js`;
+  
+    // configure worker (required for Vercel)
+    (pdfjsLib as any).GlobalWorkerOptions.workerSrc = 
+      `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${(pdfjsLib as any).version}/pdf.worker.min.js`;
+
     const loadingTask = pdfjsLib.getDocument({ data: fileBuffer });
     const pdf = await loadingTask.promise;
+
     let fullText = '';
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
@@ -75,15 +83,16 @@ async function analyzeDocument(fileBuffer: Buffer) {
       fullText += pageText + ' ';
     }
 
-    const suspicious = /\b(guarantee|approved by sebi|fraud|fake)\b/i.test(
-      fullText
-    );
+    const suspicious = /\b(guarantee|approved by sebi|fraud|fake)\b/i.test(fullText);
     const metadata = { size: fileBuffer.length, type: 'pdf', suspicious };
+
     return { text: fullText.trim(), suspicious, metadata };
   } catch (err) {
+    console.error('PDF parse error:', err);
     return { error: 'Failed to parse document' };
   }
 }
+
 
 /* ---------------------------
    Route Handler
@@ -110,7 +119,7 @@ export async function POST(req: Request) {
     // 2) Red-flag scan
     const violations = scanBioForFlags(bio);
 
-    // 3) AI classification via Google GenAI
+    // 3) AI classification
     let aiResult = null;
     if (bio) aiResult = await genAIClassify(bio);
 
@@ -122,30 +131,28 @@ export async function POST(req: Request) {
     }
 
     // 5) Compute risk & verdict
-    const { riskScore, verdict } = computeRiskFromViolations(
-      violations,
-      sebiCheck
-    );
+    const { riskScore, verdict } = computeRiskFromViolations(violations, sebiCheck);
 
     // 6) Build summary & recommendations
     const recs = buildRecommendations({ violations, sebiCheck });
     const summaryParts: string[] = [];
-    if (violations.length > 0)
+
+    if (violations.length > 0) {
       summaryParts.push(
-        `Detected text issues: ${violations
-          .map((v) => v.description)
-          .join('; ')}`
+        `Detected text issues: ${violations.map((v) => v.description).join('; ')}`
       );
-    if (sebiCheck)
+    }
+    if (sebiCheck) {
       summaryParts.push(
-        `SEBI registration: ${sebiCheck.valid ? 'VALID' : 'INVALID'} (${
-          sebiCheck.reason
-        })`
+        `SEBI registration: ${sebiCheck.valid ? 'VALID' : 'INVALID'} (${sebiCheck.reason})`
       );
-    if (aiResult?.topLabel)
+    }
+    if (aiResult?.topLabel) {
       summaryParts.push(`AI classification: ${aiResult.topLabel}`);
-    if (documentAnalysis?.suspicious)
+    }
+    if (documentAnalysis && (documentAnalysis as any).suspicious) {
       summaryParts.push(`Document analysis flagged suspicious terms.`);
+    }
 
     const result: FraudCheckResult = {
       verdict,
@@ -161,9 +168,6 @@ export async function POST(req: Request) {
     return NextResponse.json(result, { status: 200 });
   } catch (err: any) {
     console.error('fraud-check error:', err);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
