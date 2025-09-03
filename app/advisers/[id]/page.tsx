@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ADVISERS } from '../../../data/advisers';
 import ReactMarkdown from 'react-markdown';
@@ -367,7 +367,7 @@ export default function AdviserDetail({ params }: { params: { id: string } }) {
       const reply: AdviserChatMsg = {
         id: 'a-' + Date.now(),
         from: 'adviser',
-        text: `Thanks for your question: "${userText}". (Demo reply — replace with real adviser backend.)`,
+        text: `Thanks for your question: '${userText}'. (Demo reply — replace with real adviser backend.)`,
         time: new Date().toLocaleTimeString(),
       };
       setAdviserMessages((p) => [...p, reply]);
@@ -410,32 +410,6 @@ export default function AdviserDetail({ params }: { params: { id: string } }) {
         </div>
 
         <div className="flex gap-2 items-center">
-          {/* <button
-            onClick={runMLCheck}
-            disabled={loadingML || loadingAI}
-            className={`px-4 py-2 rounded font-semibold text-white transition ${
-              loadingML
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-indigo-600 hover:bg-indigo-700'
-            }`}
-            title="Run only ML pattern classifier"
-          >
-            {loadingML ? 'Profile check…' : 'Run ML Check'}
-          </button>
-
-          <button
-            onClick={runAICheck}
-            disabled={loadingAI || loadingML}
-            className={`px-4 py-2 rounded font-semibold text-white transition ${
-              loadingAI
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-green-600 hover:bg-green-700'
-            }`}
-            title="Run only AI reasoning"
-          >
-            {loadingAI ? 'Running AI…' : 'Run AI Check'}
-          </button> */}
-
           <button
             onClick={() => router.push(`/advisers/${adviser.id}/chat`)}
             className="px-4 py-2 bg-gray-100 text-zinc-800 border border-gray-300 rounded hover:bg-gray-200 font-semibold"
@@ -688,7 +662,7 @@ export default function AdviserDetail({ params }: { params: { id: string } }) {
                 </div>
 
                 <div className="mt-3 text-xs text-gray-500">
-                  This demo stores chat locally. Use the "Open full chat" button
+                  This demo stores chat locally. Use the &quot;Open full chat&quot; button
                   to go to the dedicated chat page.
                 </div>
               </>
