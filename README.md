@@ -138,10 +138,3 @@ Suggested 3-step demo:
 3. **Verify an unlisted app**  
 
 ---
-
-
-### Quick Links
-
-- [Privacy](#)  
-- [Terms](#)  
-- [Contact](#)
