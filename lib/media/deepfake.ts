@@ -2,7 +2,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
-import { fileTypeFromBuffer } from 'file-type';
+import { fileTypeFromBuffer, FileTypeResult } from 'file-type';
 import tmp from 'tmp-promise';
 import sharp from 'sharp';
 
@@ -92,12 +92,14 @@ export async function checkDeepfake(
   const evidence: any = { sha256, size: buffer.length };
 
   // detect mime-type using file-type
-  let ft: { ext?: string; mime?: string } | null = null;
+  let ft: FileTypeResult | null = null;
   try {
-    ft = await fileTypeFromBuffer(buffer).catch(() => null);
+    const detected = await fileTypeFromBuffer(buffer);
+    ft = detected ?? null; // normalize undefined → null
   } catch {
     ft = null;
   }
+  
   const mime = ft?.mime ?? 'application/octet-stream';
   evidence.mime = mime;
   if (opts?.verbose) notes.push(`Detected mime: ${mime}`);
@@ -160,15 +162,17 @@ export async function checkDeepfake(
     mime === 'application/octet-stream'
   ) {
     // attempt to dynamically load fluent-ffmpeg and ffprobe-static
-    let ffmpeg: any = null;
+    let ffmpegMod: any = null;
     let ffprobeStatic: any = null;
     try {
       // dynamic import so builds that can't install native deps don't fail at module load
-      ffmpeg = (await import('fluent-ffmpeg')).default ?? (await import('fluent-ffmpeg'));
-      ffprobeStatic = (await import('ffprobe-static')).default ?? (await import('ffprobe-static'));
+      ffmpegMod = await import('fluent-ffmpeg');
+      ffprobeStatic = await import('ffprobe-static');
       // set ffprobe path if available
-      if (ffprobeStatic && ffmpeg && ffmpeg.setFfprobePath) {
-        ffmpeg.setFfprobePath(ffprobeStatic.path);
+      const ffmpegLib = (ffmpegMod as any).default ?? ffmpegMod;
+      const ffprobePath = (ffprobeStatic as any).path ?? (ffprobeStatic as any).default?.path;
+      if (ffprobePath && ffmpegLib && typeof ffmpegLib.setFfprobePath === 'function') {
+        ffmpegLib.setFfprobePath(ffprobePath);
       }
     } catch (err: any) {
       // If ffmpeg/ffprobe not available in runtime, return a graceful fallback
@@ -189,9 +193,11 @@ export async function checkDeepfake(
     try {
       await fs.writeFile(tmpfile, buffer);
 
+      const ffmpegLib = (ffmpegMod as any).default ?? ffmpegMod;
+
       // run ffprobe to get streams/duration
       const ffprobeInfo = await new Promise<any>((resolve, reject) => {
-        ffmpeg.ffprobe(tmpfile, (err: any, data: any) => {
+        ffmpegLib.ffprobe(tmpfile, (err: any, data: any) => {
           if (err) reject(err);
           else resolve(data);
         });
@@ -236,9 +242,88 @@ export async function checkDeepfake(
       for (let i = 0; i < timesToExtract.length; i++) {
         const t = timesToExtract[i];
         const out = path.join(framesDir, `frame_${i}.png`);
+        // wrap screenshots in a promise
         await new Promise<void>((resolve, reject) => {
-          // note: fluent-ffmpeg `.screenshots()` may spawn ffmpeg binary in runtime
-          ffmpeg(tmpfile)
+          ffmpegLib(tmpfile)
             .screenshots({
               timestamps: [t],
               filename: path.basename(out),
+              folder: framesDir,
+              size: '512x?',
+            })
+            .on('end', () => resolve())
+            .on('error', (err: any) => reject(err));
+        });
+        frameFiles.push(out);
+      }
+
+      // analyze frames with sharp (variance / blur proxy)
+      const variances: number[] = [];
+      for (const f of frameFiles) {
+        try {
+          const img = sharp(f).greyscale().resize(256, 256, { fit: 'inside' });
+          const raw = await img.raw().toBuffer({ resolveWithObject: true });
+          const channels = raw.info.channels || 1;
+          let sum = 0;
+          for (let i = 0; i < raw.data.length; i += channels) sum += raw.data[i];
+          const n = raw.data.length / channels;
+          const mean = sum / n;
+          let varSum = 0;
+          for (let i = 0; i < raw.data.length; i += channels) {
+            const v = raw.data[i] - mean;
+            varSum += v * v;
+          }
+          const variance = varSum / n;
+          variances.push(variance);
+        } catch (err: any) {
+          // ignore per-frame failures
+        }
+      }
+
+      const avgVariance = variances.length ? variances.reduce((a, b) => a + b, 0) / variances.length : 0;
+      evidence.frameCount = variances.length;
+      evidence.avgVariance = avgVariance;
+
+      if (variances.length === 0) {
+        notes.push('Failed to extract or analyze frames — cannot compute frame variance.');
+        score += 20;
+      } else {
+        notes.push(`Analyzed ${variances.length} frames — avg variance ${avgVariance.toFixed(1)}.`);
+        if (avgVariance < 50) {
+          notes.push('Frames are unusually smooth / low variance — possible synthetic content or heavy filtering.');
+          score += 30;
+        }
+      }
+
+      // combine heuristics
+      const suspicious = score >= 60 || (avgVariance < 40 && score >= 30);
+      return {
+        suspicious,
+        score: Math.min(100, score),
+        notes,
+        evidence,
+      };
+    } catch (err: any) {
+      return {
+        suspicious: false,
+        score: 0,
+        notes: ['Heuristic analysis failed: ' + String(err?.message ?? err)],
+        evidence: { sha256, size: buffer.length },
+      };
+    } finally {
+      try {
+        await tmpDir.cleanup();
+      } catch {
+        // ignore cleanup errors
+      }
+    }
+  }
+
+  // fallback
+  return {
+    suspicious: false,
+    score: 0,
+    notes: ['Unrecognized media type; no analysis performed.'],
+    evidence: { sha256, size: buffer.length, mime },
+  };
+}
