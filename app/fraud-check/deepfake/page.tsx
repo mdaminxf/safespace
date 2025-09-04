@@ -1,6 +1,7 @@
 // app/fraud-check/deepfake/page.tsx
 'use client';
 import { useState } from 'react';
+import AnalysisSummary from './components/AnalysisSummary';
 
 export default function DeepfakePage() {
   const [file, setFile] = useState<File | null>(null);
@@ -144,12 +145,7 @@ export default function DeepfakePage() {
                 Size: {Math.round((result.sizeBytes ?? 0) / 1024)} KB
               </p>
 
-              <div className="mt-3">
-                <strong>Summary:</strong>
-                <pre className="mt-2 overflow-auto bg-slate-50 p-3 rounded text-xs text-slate-700">
-                  {JSON.stringify(result.result, null, 2)}
-                </pre>
-              </div>
+              <AnalysisSummary result={result.result} />
 
               <div className="mt-3">
                 <strong>Quick verdict:</strong>{' '}
