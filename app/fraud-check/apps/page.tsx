@@ -24,24 +24,7 @@ export default function FraudCheckApps() {
         Verify & Browse Trading Apps
       </h1>
 
-      {/* Search for app */}
-      <div className="mb-6">
-        <input
-          type="text"
-          placeholder="Type app name to check..."
-          className="w-full border rounded p-3 text-sm mb-2"
-          value={appName}
-          onChange={(e) => setAppName(e.target.value)}
-        />
-        <button
-          onClick={handleCheck}
-          className="px-6 py-2 bg-sky-600 text-white rounded hover:bg-sky-700"
-        >
-          Check App
-        </button>
-        {checkResult && <p className="mt-2 text-slate-700">{checkResult}</p>}
-      </div>
-
+      
       {/* List of trusted apps */}
       <div>
         <h2 className="text-xl font-semibold text-slate-800 mb-3">

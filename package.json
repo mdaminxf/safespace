@@ -26,6 +26,7 @@
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^2.16.105",
+    "pdfreader": "^3.0.7",
     "postcss": "8.4.30",
     "react": "18.2.0",
     "react-dom": "18.2.0",

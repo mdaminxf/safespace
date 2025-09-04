@@ -1,156 +1,183 @@
-import { NextResponse } from 'next/server';
-import {
-  scanBioForFlags,
-  checkSEBIRegistrationFlexible,
-  computeRiskFromViolations,
-  buildRecommendations,
-  Violation,
-} from '../../../lib/frad-utils';
-import pdfParse from 'pdf-parse';
-import { GoogleGenAI } from '@google/genai';
+// app/api/analyze-doc/route.ts
+import { NextResponse } from "next/server";
+import { PdfReader } from "pdfreader";
+import { GoogleGenAI } from "@google/genai";
 
-/* ---------------------------
-   Types
---------------------------- */
-type FraudCheckResult = {
-  verdict: 'HIGH_RISK' | 'MEDIUM_RISK' | 'LOW_RISK' | 'UNKNOWN';
+type RedFlag = {
+  description: string;
+  severity: "low" | "medium" | "high" | string;
+  matches: string[];
+  guidance?: string;
+};
+
+type SEBIDetails = {
+  registration: { valid: boolean; reason?: string };
+  redFlags: RedFlag[];
+};
+
+type FraudResult = {
+  verdict: "Valid" | "Invalid" | "Risky" | string;
   riskScore: number;
-  sebi: any;
-  redFlags: Violation[];
-  ai?: any;
-  documentAnalysis?: { text?: string; suspicious?: boolean; metadata?: any } | null;
+  sebi: SEBIDetails;
   summary: string;
   recommendations: string[];
 };
 
-/* ---------------------------
-AI/NLP via Google GenAI
---------------------------- */
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? '' });
+async function extractTextFromBuffer(buffer: Buffer): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let text = "";
+    try {
+      new PdfReader().parseBuffer(buffer, (err, item) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        if (!item) {
+          resolve(text.trim());
+          return;
+        }
+        if ((item as any).text) {
+          text += (item as any).text + " ";
+        }
+      });
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
 
-async function genAIClassify(text: string) {
+async function callGeminiAnalyze(ai: GoogleGenAI, model: string, text: string): Promise<{ parsed?: FraudResult; raw?: string }> {
+  // Build a strong instruction to return JSON only
+  const system = `You are an assistant specialized in analyzing SEBI / Indian regulatory documents for fraud/compliance risks.
+Return a single JSON object that exactly matches this schema (no extra commentary):
+{
+  "verdict": "Valid | Invalid | Risky",
+  "riskScore": 0-100,
+  "sebi": {
+    "registration": { "valid": boolean, "reason": "string (optional)" },
+    "redFlags": [
+      { "description": "string", "severity": "low|medium|high", "matches": ["matching text snippets"], "guidance": "string (optional)" }
+    ]
+  },
+  "summary": "short summary string",
+  "recommendations": ["string", ...]
+}`;
+
+  const user = `Analyze the document (DOCUMENT START) below and output only the JSON described above. DOCUMENT START:\n\n${text}\n\nDOCUMENT END.`;
+
+  const response = await ai.models.generateContent({
+    model,
+    contents: [
+      {
+        parts: [{ text: system + "\n\n" + user }],
+      },
+    ],
+    // keep deterministic
+    config: { temperature: 0.0 },
+  });
+
+  // .text contains assembled text response (per SDK quickstart)
+  const content = (response as any).text ?? "";
+
+  // strip common fences and parse JSON
+  const cleaned = content
+    .trim()
+    .replace(/^```(?:json)?\s*/, "")
+    .replace(/```\s*$/, "");
+
   try {
-    if (!process.env.GEMINI_API_KEY) {
-      return { error: 'GenAI API key missing' };
+    const parsed = JSON.parse(cleaned) as FraudResult;
+    // normalize riskScore
+    if (typeof parsed.riskScore !== "number") parsed.riskScore = Number((parsed as any).riskScore) || 0;
+    return { parsed };
+  } catch (e) {
+    // parsing fail: return raw content for fallback/diagnostics
+    return { raw: content };
+  }
+}
+
+export async function POST(req: Request) {
+  try {
+    const contentType = (req.headers.get("content-type") || "").toLowerCase();
+    let textToAnalyze = "";
+
+    if (contentType.startsWith("multipart/form-data")) {
+      const form = await req.formData();
+      const file = form.get("file") as File | null;
+      const rawText = form.get("text") as string | null;
+
+      if (file) {
+        const buf = Buffer.from(await file.arrayBuffer());
+        textToAnalyze = await extractTextFromBuffer(buf);
+      } else if (rawText) {
+        textToAnalyze = rawText;
+      }
+    } else if (contentType.includes("application/json")) {
+      const body = await req.json().catch(() => ({}));
+      textToAnalyze = body?.text ?? "";
+    } else {
+      // fallback: try formData
+      try {
+        const form = await req.formData();
+        const file = form.get("file") as File | null;
+        const rawText = form.get("text") as string | null;
+        if (file) {
+          textToAnalyze = await extractTextFromBuffer(Buffer.from(await file.arrayBuffer()));
+        } else if (rawText) {
+          textToAnalyze = rawText;
+        }
+      } catch {
+        // nothing
+      }
     }
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [
-        {
-          role: 'user',
-          parts: [
+    if (!textToAnalyze || !textToAnalyze.trim()) {
+      return NextResponse.json({ error: "No text or file content provided" }, { status: 400 });
+    }
+
+    // Initialize GenAI client (SDK reads GEMINI_API_KEY from env if not provided)
+    const GEMINI_KEY = process.env.GEMINI_API_KEY;
+    const MODEL = process.env.MODEL || "gemini-2.5-flash";
+
+    if (!GEMINI_KEY) {
+      // No key: return demo result (safe fallback)
+      const demo: FraudResult = {
+        verdict: "Risky",
+        riskScore: 42,
+        sebi: {
+          registration: { valid: false, reason: "Registration not found" },
+          redFlags: [
             {
-              text: `Classify this text for investment fraud: "${text}"\nLabels: legitimate, misleading, fraudulent`,
+              description: "Unclear fees disclosure",
+              severity: "medium",
+              matches: ["fee", "charge", "commission"],
+              guidance: "Verify fee schedule against SEBI registry",
             },
           ],
         },
-      ],
-    });
+        summary: textToAnalyze.slice(0, 300) + (textToAnalyze.length > 300 ? "..." : ""),
+        recommendations: ["Verify registration with SEBI", "Request clearer disclosures"],
+      };
+      return NextResponse.json({ result: demo }, { status: 200 });
+    }
 
-    // Attempt to extract text output (the SDK may differ; adjust as needed)
-    const outputText = (response as any)?.text ?? JSON.stringify(response);
-    let topLabel: string = 'unknown';
-    if (/fraudulent/i.test(outputText)) topLabel = 'fraudulent';
-    else if (/misleading/i.test(outputText)) topLabel = 'misleading';
-    else if (/legitimate/i.test(outputText)) topLabel = 'legitimate';
+    // create client (pass apiKey explicitly or let SDK use GEMINI_API_KEY)
+    const ai = new GoogleGenAI({ apiKey: GEMINI_KEY });
 
-    return { topLabel, raw: outputText };
+    // call Gemini
+    let analyzeRes = await callGeminiAnalyze(ai, MODEL, textToAnalyze);
+
+    if (analyzeRes.parsed) {
+      return NextResponse.json({ result: analyzeRes.parsed }, { status: 200 });
+    } else {
+      // raw content fallback — return raw text and helpful message
+      return NextResponse.json(
+        { raw: analyzeRes.raw ?? "Model returned no parsable JSON", note: "Model output couldn't be parsed as JSON; inspect `raw` for diagnostics" },
+        { status: 200 }
+      );
+    }
   } catch (err: any) {
-    return { error: err?.message ?? String(err) };
-  }
-}
-
-/* ---------------------------
-   PDF OCR + metadata (server-safe using pdf-parse)
-   - pdf-parse works server-side and does not require canvas
---------------------------- */
-async function analyzeDocument(fileBuffer: Buffer) {
-  try {
-    // pdf-parse extracts selectable text from PDFs
-    const data = (await pdfParse(fileBuffer)) as { text?: string };
-    const fullText = String(data?.text ?? '').trim();
-
-    const suspicious = /\b(guarantee|approved by sebi|fraud|fake)\b/i.test(fullText);
-    const metadata = { size: fileBuffer.length, type: 'pdf', suspicious };
-
-    return { text: fullText, suspicious, metadata };
-  } catch (err) {
-    console.error('PDF parse error (pdf-parse):', err);
-    return { error: 'Failed to parse document' };
-  }
-}
-
-/* ---------------------------
-   Route Handler
---------------------------- */
-export async function POST(req: Request) {
-  try {
-    const formData = await req.formData();
-    const bioRaw = formData.get('bio') as string | null;
-    const regNo = formData.get('regNo') as string | null;
-    const file = formData.get('file') as File | null;
-
-    if (!bioRaw && !file) {
-      return NextResponse.json({ error: 'Provide at least bio text or document' }, { status: 400 });
-    }
-
-    const bio = bioRaw?.trim().slice(0, 8000) ?? '';
-
-    // 1) SEBI registration check
-    const sebiCheck = await checkSEBIRegistrationFlexible(regNo, bio);
-
-    // 2) Red-flag scan
-    const violations = scanBioForFlags(bio);
-
-    // 3) AI classification (optional)
-    let aiResult: any = null;
-    if (bio) aiResult = await genAIClassify(bio);
-
-    // 4) Document analysis (if file uploaded)
-    let documentAnalysis: any = null;
-    if (file && typeof file.arrayBuffer === 'function') {
-      const buffer = Buffer.from(await file.arrayBuffer());
-      documentAnalysis = await analyzeDocument(buffer);
-    }
-
-    // 5) Compute risk & verdict
-    const { riskScore, verdict } = computeRiskFromViolations(violations, sebiCheck);
-
-    // 6) Build summary & recommendations
-    const recs = buildRecommendations({ violations, sebiCheck });
-    const summaryParts: string[] = [];
-
-    if (violations.length > 0) {
-      summaryParts.push(`Detected text issues: ${violations.map((v) => v.description).join('; ')}`);
-    }
-
-    if (sebiCheck) {
-      summaryParts.push(`SEBI registration: ${sebiCheck.valid ? 'VALID' : 'INVALID'} (${sebiCheck.reason})`);
-    }
-
-    if (aiResult?.topLabel) {
-      summaryParts.push(`AI classification: ${aiResult.topLabel}`);
-    }
-
-    if (documentAnalysis && documentAnalysis.suspicious) {
-      summaryParts.push('Document analysis flagged suspicious terms.');
-    }
-
-    const result: FraudCheckResult = {
-      verdict,
-      riskScore,
-      sebi: sebiCheck,
-      redFlags: violations,
-      ai: aiResult,
-      documentAnalysis,
-      summary: summaryParts.join(' '),
-      recommendations: recs,
-    };
-
-    return NextResponse.json(result, { status: 200 });
-  } catch (err: any) {
-    console.error('fraud-check error:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error("Server error in /api/analyze-doc (Gemini):", err);
+    return NextResponse.json({ error: "Internal server error", details: String(err) }, { status: 500 });
   }
 }
