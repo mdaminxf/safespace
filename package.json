@@ -9,7 +9,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@google/genai": "^1.16.0",
     "@google/generative-ai": "^0.24.1",
     "@types/node": "20.6.2",
