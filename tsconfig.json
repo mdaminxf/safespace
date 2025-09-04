@@ -16,7 +16,6 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "preserve",
-    "typeRoots": ["./types", "./node_modules/@types"],
     "incremental": true,
     "esModuleInterop": true,
     "plugins": [
