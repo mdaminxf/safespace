@@ -16,63 +16,46 @@ export default function DeepfakePage() {
     setFile(f);
   };
 
-  async function analyzeUpload() {
+  async function fakeAnalyze(source: string) {
+    setLoading(true);
     setError(null);
     setResult(null);
-    if (!file) {
-      setError('Please select a video file to upload.');
-      return;
-    }
 
-    setLoading(true);
-    try {
-      const form = new FormData();
-      form.append('file', file);
+    // Simulate delay
+    await new Promise((res) => setTimeout(res, 1500));
 
-      const res = await fetch('/api/deepfake', {
-        method: 'POST',
-        body: form,
-      });
+    // Demo output (mocked result)
+    setResult({
+      source,
+      sizeBytes: file?.size ?? 123456,
+      result: {
+        suspicious: Math.random() > 0.5,
+        score: Math.round(Math.random() * 100),
+        evidence: {
+          "frame-glitches": Math.random() > 0.3,
+          "audio-sync": Math.random() > 0.4,
+          "metadata": { codec: "h264", container: "mp4" },
+        },
+      },
+    });
 
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        throw new Error(`Server error ${res.status}: ${text}`);
-      }
-      const json = await res.json();
-      setResult(json);
-    } catch (err: any) {
-      setError(String(err?.message ?? err));
-    } finally {
-      setLoading(false);
-    }
+    setLoading(false);
   }
 
-  async function analyzeUrl() {
-    setError(null);
-    setResult(null);
-    if (!url.trim()) {
-      setError('Please enter a video URL to analyze.');
+  function analyzeUpload() {
+    if (!file) {
+      setError('Please select a video file.');
       return;
     }
-    setLoading(true);
-    try {
-      const res = await fetch('/api/deepfake', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url.trim() }),
-      });
+    fakeAnalyze(`Uploaded file: ${file.name}`);
+  }
 
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        throw new Error(`Server error ${res.status}: ${text}`);
-      }
-      const json = await res.json();
-      setResult(json);
-    } catch (err: any) {
-      setError(String(err?.message ?? err));
-    } finally {
-      setLoading(false);
+  function analyzeUrl() {
+    if (!url.trim()) {
+      setError('Please enter a video URL.');
+      return;
     }
+    fakeAnalyze(`URL: ${url.trim()}`);
   }
 
   return (
@@ -82,8 +65,8 @@ export default function DeepfakePage() {
           Deepfake / Media Analysis (Demo)
         </h1>
         <p className="text-sm text-slate-600 mt-2">
-          Upload a video file or provide a public video URL. The server runs a
-          heuristic deepfake check and returns suspicious indicators.
+          This is a <strong>demo-only</strong> interface. The results below are
+          <em> simulated</em> for demonstration purposes.
         </p>
 
         {/* File upload */}
@@ -96,7 +79,7 @@ export default function DeepfakePage() {
           <div className="mt-3 flex gap-3 items-center">
             <input
               type="file"
-              accept="video/*,audio/*,image/*"
+              accept="video/*"
               onChange={handleFileChange}
             />
             <button
@@ -118,8 +101,8 @@ export default function DeepfakePage() {
         <section className="mt-6 bg-white p-4 rounded shadow">
           <h2 className="font-semibold">Analyze by URL</h2>
           <p className="text-xs text-slate-500 mt-1">
-            Provide a public URL (CORS permitting). The server will fetch the
-            media and analyze it.
+            Provide a public URL. The server will fetch the media and analyze it
+            (simulated).
           </p>
 
           <div className="mt-3 flex gap-3">
@@ -168,7 +151,6 @@ export default function DeepfakePage() {
                 </pre>
               </div>
 
-              {/* Quick verdict */}
               <div className="mt-3">
                 <strong>Quick verdict:</strong>{' '}
                 {result.result?.suspicious ? (
@@ -184,21 +166,6 @@ export default function DeepfakePage() {
                   Score (heuristic): {result.result?.score ?? 'n/a'}
                 </div>
               </div>
-
-              {/* Evidence (key fields) */}
-              {result.result?.evidence && (
-                <div className="mt-3">
-                  <strong>Evidence:</strong>
-                  <ul className="list-disc pl-5 text-sm mt-2 text-slate-700">
-                    {Object.entries(result.result.evidence).map(([k, v]) => (
-                      <li key={k}>
-                        <span className="font-medium">{k}:</span>{' '}
-                        {typeof v === 'object' ? JSON.stringify(v) : String(v)}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
             </div>
           )}
         </section>
