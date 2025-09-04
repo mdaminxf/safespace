@@ -37,7 +37,6 @@ export default function FraudCheckDocsPage() {
     const f = e.target.files?.[0] ?? null;
     setFile(f);
   };
-
   const handleClear = () => {
     setFile(null);
     setText("");
